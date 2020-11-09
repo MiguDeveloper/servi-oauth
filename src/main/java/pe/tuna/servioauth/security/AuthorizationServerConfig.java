@@ -1,8 +1,10 @@
 package pe.tuna.servioauth.security;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
@@ -16,6 +18,7 @@ import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 
 import java.util.Arrays;
 
+@RefreshScope
 @Configuration
 @EnableAuthorizationServer
 public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdapter {
@@ -29,6 +32,9 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     // la clase InfoAdicionalToken un @Component podemos inyectarlo
     @Autowired
     private InfoAdicionalToken infoAdicionalToken;
+
+    @Autowired
+    private Environment environment;
 
     // Usamos este metodo para exponer dos endpoints que no estan expuestos que son:
     // tokenKeyAccess:  habilita la ruta de generacion de token POST: /oauth/token
@@ -44,8 +50,8 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     // llames un SPA como angular, react, vue, etc. android
     @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-        clients.inMemory().withClient("angularApp")
-                .secret(passwordEncoder.encode("12345"))
+        clients.inMemory().withClient(environment.getProperty("config.security.oauth.cliente.id"))
+                .secret(passwordEncoder.encode(environment.getProperty("config.security.oauth.cliente.secret")))
                 .scopes("read", "write")
                 .authorizedGrantTypes("password", "refresh_token")
                 .accessTokenValiditySeconds(3600)
@@ -77,7 +83,7 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     @Bean
     public JwtAccessTokenConverter accessTokenConverter() {
         JwtAccessTokenConverter jwtAccessTokenConverter = new JwtAccessTokenConverter();
-        jwtAccessTokenConverter.setSigningKey("nuestraFirmaSecretaQueIraEnElServidorDeConfiguracion");
+        jwtAccessTokenConverter.setSigningKey(environment.getProperty("config.security.oauth.jwt.key"));
         // jwtAccessTokenConverter.setVerifierKey("conEstaFirmaVerificamos");
         return jwtAccessTokenConverter;
     }
