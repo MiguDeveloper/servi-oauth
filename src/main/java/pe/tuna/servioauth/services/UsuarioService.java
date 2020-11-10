@@ -1,5 +1,6 @@
 package pe.tuna.servioauth.services;
 
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,26 +28,33 @@ public class UsuarioService implements UserDetailsService, IUsuarioService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
-        Usuario usuario = client.findByUsername(username);
-        if (usuario == null) {
+        try {
+            Usuario usuario = client.findByUsername(username);
+
+            List<GrantedAuthority> authorities = usuario.getRoles()
+                    .stream()
+                    .map(role -> new SimpleGrantedAuthority(role.getNombre()))
+                    .peek(authority -> log.info("Rol: " + authority.getAuthority()))
+                    .collect(Collectors.toList());
+            log.info("Usuario autenticado: " + username);
+
+            return new User(usuario.getUsername(), usuario.getPassword(), usuario.isEnable(),
+                    true, true, true, authorities);
+        } catch (FeignException ex) {
             log.error("Error en el login, el usuario: " + username + " no existe en la BD");
             throw new UsernameNotFoundException("Error en el login, el usuario: "
                     + username + " no existe en la BD");
         }
 
-        List<GrantedAuthority> authorities = usuario.getRoles()
-                .stream()
-                .map(role -> new SimpleGrantedAuthority(role.getNombre()))
-                .peek(authority -> log.info("Rol: " + authority.getAuthority()))
-                .collect(Collectors.toList());
-        log.info("Usuario autenticado: " + username);
-
-        return new User(usuario.getUsername(), usuario.getPassword(), usuario.isEnable(),
-                true, true, true, authorities);
     }
 
     @Override
     public Usuario findByUsername(String username) {
         return client.findByUsername(username);
+    }
+
+    @Override
+    public Usuario updateUsuario(Usuario usuario, Long id) {
+        return client.updateUsuario(usuario, id);
     }
 }
