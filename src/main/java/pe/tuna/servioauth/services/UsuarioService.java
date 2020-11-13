@@ -1,5 +1,6 @@
 package pe.tuna.servioauth.services;
 
+import brave.Tracer;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,9 @@ public class UsuarioService implements UserDetailsService, IUsuarioService {
     @Autowired
     private UsuarioFeignClient client;
 
+    @Autowired
+    private Tracer tracer;
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
@@ -41,9 +45,10 @@ public class UsuarioService implements UserDetailsService, IUsuarioService {
             return new User(usuario.getUsername(), usuario.getPassword(), usuario.isEnable(),
                     true, true, true, authorities);
         } catch (FeignException ex) {
-            log.error("Error en el login, el usuario: " + username + " no existe en la BD");
-            throw new UsernameNotFoundException("Error en el login, el usuario: "
-                    + username + " no existe en la BD");
+            String mensaje = "Error en el login, el usuario: " + username + " no existe en la BD";
+            log.error(mensaje);
+            tracer.currentSpan().tag("error.mensaje", mensaje + ex.getMessage());
+            throw new UsernameNotFoundException(mensaje);
         }
 
     }
